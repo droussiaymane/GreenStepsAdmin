@@ -31,9 +31,6 @@ class _CompetitionState extends State<Competition> {
   }
 }
 
-
-
-
 class CompetitionHome extends StatefulWidget {
   const CompetitionHome({Key? key}) : super(key: key);
 
@@ -57,14 +54,13 @@ class _CompetitionHomeState extends State<CompetitionHome> {
           DateTime today = DateTime.now();
           var lastCompetitionEndDay =
               DateTime.parse(snapshot.data!.docs[0].get("date de fin"));
-
- 
-
+          
           if (today.compareTo(lastCompetitionEndDay) <= 0) {
             DocumentSnapshot activeCompetition = snapshot.data!.docs[0];
+          
             return CompetitionDashBoard(activeCompetition.reference);
           }
-       
+
           return const CompetitionSpecification();
         });
   }
@@ -89,7 +85,8 @@ class _CompetitionDashBoardState extends State<CompetitionDashBoard> {
 
   @override
   Widget build(BuildContext context) {
-    final CompetitionProvider competitionProvider = Provider.of<CompetitionProvider>(context);
+    final CompetitionProvider competitionProvider =
+        Provider.of<CompetitionProvider>(context);
     searchKey = competitionProvider.searchKey;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -109,7 +106,7 @@ class _CompetitionDashBoardState extends State<CompetitionDashBoard> {
 
                   CompetitionModel competitionModel =
                       CompetitionModel.fromSnapshot(snapshot.data!);
-
+                  print("2");
                   return Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -121,7 +118,7 @@ class _CompetitionDashBoardState extends State<CompetitionDashBoard> {
                         ),
                         Text(
                           "Nombre total de participants " +
-                              competitionModel.participants.length.toString(),
+                              competitionModel.nombreDeParticipants.toString(),
                           style: kbody,
                         )
                       ],
@@ -330,20 +327,21 @@ class _CompetitionDashBoardState extends State<CompetitionDashBoard> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          var len = snapshot.data!.get("participants").length;
+          var len = snapshot.data!["nombre de participants"];
           if (len == 0) {
             return Column(
               children: const [
                 SizedBox(height: 100),
                 Center(
-                  child: Text("Aucun utilisateur trouvé",
-                      style: kerror),
+                  child: Text("Aucun utilisateur trouvé", style: kerror),
                 )
               ],
             );
           }
-          DateTime dateDeDebut = DateTime.parse(snapshot.data!.get("date de debut"));
-          DateTime dateDeFin = DateTime.parse(snapshot.data!.get("date de fin"));
+          DateTime dateDeDebut =
+              DateTime.parse(snapshot.data!.get("date de debut"));
+          DateTime dateDeFin =
+              DateTime.parse(snapshot.data!.get("date de fin"));
           bool isBetween(DateTime date) {
             return date.isAfter(dateDeDebut) && date.isBefore(dateDeFin) ||
                 date == dateDeDebut ||
@@ -351,20 +349,34 @@ class _CompetitionDashBoardState extends State<CompetitionDashBoard> {
           }
 
           Future<List<CcustomTableRow>> helperFuture() async {
+            List<DocumentSnapshot> participants = (await snapshot
+                    .data!.reference
+                    .collection("participants")
+                    .get())
+                .docs;
             List<CcustomTableRow> customTableRow = [];
-            for (var data in snapshot.data!.get("participants")) {
-              DocumentSnapshot user = await data.get();
+            for (var participant in participants) {
+              DocumentSnapshot user = await participant["user"].get();
+
+              var newPasHistorique = participant["pasHistorique"];
               int total = 0;
-              for (var item in user.get("pasHistorique")) {
+              for (var item in user["pasHistorique"]) {
                 DateTime day = DateTime.parse(item.keys.first);
                 int value = item.values.first;
                 if (isBetween(day)) {
-                  total += value;
+                  newPasHistorique[item.keys.first] = value;
                 } else {
                   break;
                 }
               }
-              customTableRow.add(buildListItem(context, user, total));
+
+              participant.reference.update({"pasHistorique": newPasHistorique});
+
+              for (int item in participant["pasHistorique"].values) {
+                total += item;
+              }
+
+              customTableRow.add(buildListItem(context, participant, total));
             }
             return customTableRow;
           }
@@ -379,7 +391,8 @@ class _CompetitionDashBoardState extends State<CompetitionDashBoard> {
               customTableRow.sort((a, b) => b.total.compareTo(a.total));
               var map = customTableRow.asMap();
               map.forEach((key, value) {
-                value.rang = key.toString();
+                value.rang = (key+1).toString();
+                value.participant.reference!.update({'rang': key+1});
               });
               customTableRow = map.values.toList();
 
@@ -428,22 +441,17 @@ class _CompetitionDashBoardState extends State<CompetitionDashBoard> {
 
   CcustomTableRow buildListItem(
       BuildContext context, DocumentSnapshot snapshot, int total) {
-    final userModel = UserModel.fromSnapshot(snapshot);
+    final participant = Participant.fromSnapshot(snapshot);
     return CcustomTableRow(
       "0",
-      (userModel.prenom ?? '__') + ' ' + (userModel.nom ?? '__'),
-      userModel.departement,
+      (participant.prenom ?? '__') + ' ' + (participant.nom ?? '__'),
+      participant.departement,
       total.toString(),
-      userModel.sexe!,
-      userModel,
+      participant.sexe,
+      participant,
     );
   }
 }
-
-
-
-
-
 
 
 
@@ -520,17 +528,17 @@ class _CompetitionSpecificationState extends State<CompetitionSpecification> {
                         ),
                         IconButton(
                           splashRadius: 25,
-                          onPressed: () {
-                            showDatePicker(
-                                    context: context,
-                                    initialDate: DateTime.now(),
-                                    firstDate: DateTime.now(),
-                                    lastDate: DateTime(3000))
-                                .then((value) {
+                          onPressed: () async {
+                            final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime(3000));
+                            if (picked != null) {
                               setState(() {
-                                dateDeDebut = value!;
+                                dateDeDebut = picked;
                               });
-                            });
+                            }
                           },
                           icon: const Icon(
                             Icons.calendar_month,
@@ -563,17 +571,17 @@ class _CompetitionSpecificationState extends State<CompetitionSpecification> {
                                     dateDeFin.toString().substring(0, 10)))),
                         IconButton(
                           splashRadius: 25,
-                          onPressed: () {
-                            showDatePicker(
-                                    context: context,
-                                    initialDate: dateDeDebut,
-                                    firstDate: dateDeDebut,
-                                    lastDate: DateTime(3000))
-                                .then((value) {
+                          onPressed: () async {
+                            final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime(3000));
+                            if (picked != null) {
                               setState(() {
-                                dateDeFin = value!;
+                                dateDeFin = picked;
                               });
-                            });
+                            }
                           },
                           icon: const Icon(Icons.calendar_month),
                         ),
@@ -607,7 +615,11 @@ class _CompetitionSpecificationState extends State<CompetitionSpecification> {
                     name = _nameController.text;
                     discreption = _discreptionController.text;
                     CompetitionModel competitionModel = CompetitionModel(
-                        name!, discreption!, dateDeDebut.toString().substring(0, 10), dateDeFin.toString().substring(0, 10));
+                        name!,
+                        discreption!,
+                        dateDeDebut.toString().substring(0, 10),
+                        dateDeFin.toString().substring(0, 10),
+                        0);
                     DataBase.createCompetition(competitionModel);
                     try {
                       await _fcmNotificationService.sendNotificationToAll(

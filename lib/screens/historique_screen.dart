@@ -130,7 +130,7 @@ class _CompetitionHistorqueState extends State<CompetitionHistorque> {
         competitionName: snapshot["name"],
         dateDeDepart: snapshot["date de debut"],
         dateDeFin: snapshot["date de fin"],
-        totalParticipants: snapshot["participants"].length,
+        totalParticipants: snapshot["nombre de participants"],
         competition: snapshot.reference);
   }
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:web_app/constants.dart';
 import 'dart:math';
 import 'package:charts_flutter/flutter.dart' as charts;
 import 'package:web_app/utils/utils.dart';
 import 'package:web_app/widgets/widgets.dart';
+import 'package:web_app/screens/screens.dart';
 
 class InfoUserBody extends StatefulWidget {
   final UserModel userModel;
@@ -45,6 +47,8 @@ class GeneralInfos extends StatelessWidget {
   final UserModel userModel;
   @override
   Widget build(BuildContext context) {
+    final UtilisateursProvider utilisateursProvider =
+        Provider.of<UtilisateursProvider>(context);
     return Column(
       children: [
         Expanded(
@@ -132,7 +136,9 @@ class GeneralInfos extends StatelessWidget {
         ),
        
         ElevatedButton(
-          onPressed: () {},
+          onPressed: () {
+            utilisateursProvider.push(Contacter([HelperContacter((userModel.prenom ?? '__') + ' ' + (userModel.nom ?? '__'), userModel)],null));
+          },
           child: const Text("Contacter"),
         ),
         const SizedBox(height: 16,),
@@ -140,6 +146,14 @@ class GeneralInfos extends StatelessWidget {
     );
   }
 }
+
+class HelperContacter{
+  final String fullName;
+  final UserModel user;
+
+  HelperContacter(this.fullName, this.user);
+}
+
 
 class Graphs extends StatefulWidget {
   const Graphs(this.userModel, {Key? key}) : super(key: key);

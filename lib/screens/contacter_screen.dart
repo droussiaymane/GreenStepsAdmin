@@ -30,7 +30,7 @@ class _ContacterState extends State<Contacter> {
         i++;
         return ChipData(
           id: "$i",
-          name: (e.user.prenom ?? '__') + ' ' + (e.user.nom ?? '__'),
+          name: e.fullName,//(e.user.prenom ?? '__') + ' ' + (e.user.nom ?? '__'),
         );
       }).toList();
     } else {

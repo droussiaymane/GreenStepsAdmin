@@ -42,6 +42,7 @@ dependencies:
   # cloud_functions: ^3.2.10
   firebase_messaging: ^11.2.11
   syncfusion_flutter_xlsio: ^20.1.47-beta.1
+  universal_html: ^2.0.8
 
 dev_dependencies:
   flutter_test:
